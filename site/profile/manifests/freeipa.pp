@@ -262,6 +262,7 @@ class profile::freeipa::server
   $int_domain_name = "int.${domain_name}"
   $realm = upcase($int_domain_name)
   $fqdn = "${::hostname}.${int_domain_name}"
+  $ipa_fqdn = "ipa.${int_domain_name}"
   $reverse_zone = profile::getreversezone()
 
   # Remove hosts entry only once before install FreeIPA
@@ -275,7 +276,7 @@ class profile::freeipa::server
   $ipa_server_install_cmd = @("IPASERVERINSTALL"/L)
       /sbin/ipa-server-install \
       --setup-dns \
-      --hostname ${fqdn} \
+      --hostname ${ipa_fqdn} \
       --ds-password ${admin_passwd} \
       --admin-password ${admin_passwd} \
       --mkhomedir \
@@ -314,8 +315,8 @@ class profile::freeipa::server
     subscribe   => Exec['ipa-server-install']
   }
 
-  exec { 'ipa_add_record_A':
-    command     => "kinit_wrapper ipa dnsrecord-add ${int_domain_name} ipa --a-rec ${::ipaddress_eth0}",
+  exec { "ipa_add_${::hostname}_record_A":
+    command     => "kinit_wrapper ipa dnsrecord-add ${int_domain_name} ${::hostname} --a-rec ${::ipaddress_eth0}",
     refreshonly => true,
     require     => [File['kinit_wrapper'], ],
     environment => ["IPA_ADMIN_PASSWD=${admin_passwd}"],
