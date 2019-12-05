@@ -315,8 +315,8 @@ class profile::freeipa::server
     subscribe   => Exec['ipa-server-install']
   }
 
-  exec { "ipa_add_${::hostname}_record_A":
-    command     => "kinit_wrapper ipa dnsrecord-add ${int_domain_name} ${::hostname} --a-rec ${::ipaddress_eth0}",
+  exec { "ipa_add_${::hostname}_record_cname":
+    command     => "kinit_wrapper ipa dnsrecord-add ${int_domain_name} ${::hostname} --cname-rec ipa",
     refreshonly => true,
     require     => [File['kinit_wrapper'], ],
     environment => ["IPA_ADMIN_PASSWD=${admin_passwd}"],
