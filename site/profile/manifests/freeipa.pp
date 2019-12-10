@@ -262,7 +262,6 @@ class profile::freeipa::server
   $int_domain_name = "int.${domain_name}"
   $realm = upcase($int_domain_name)
   $fqdn = "${::hostname}.${int_domain_name}"
-  $ipa_fqdn = "ipa.${int_domain_name}"
   $reverse_zone = profile::getreversezone()
 
   # Remove hosts entry only once before install FreeIPA
@@ -276,7 +275,7 @@ class profile::freeipa::server
   $ipa_server_install_cmd = @("IPASERVERINSTALL"/L)
       /sbin/ipa-server-install \
       --setup-dns \
-      --hostname ${ipa_fqdn} \
+      --hostname ${fqdn} \
       --ds-password ${admin_passwd} \
       --admin-password ${admin_passwd} \
       --mkhomedir \
@@ -310,15 +309,6 @@ class profile::freeipa::server
     command     => 'kinit_wrapper ipa config-mod --user-auth-type=otp',
     refreshonly => true,
     require     => [File['kinit_wrapper'],],
-    environment => ["IPA_ADMIN_PASSWD=${admin_passwd}"],
-    path        => ['/bin', '/usr/bin', '/sbin','/usr/sbin'],
-    subscribe   => Exec['ipa-server-install']
-  }
-
-  exec { "ipa_add_${::hostname}_record_cname":
-    command     => "kinit_wrapper ipa dnsrecord-add ${int_domain_name} ${::hostname} --cname-rec ipa",
-    refreshonly => true,
-    require     => [File['kinit_wrapper'], ],
     environment => ["IPA_ADMIN_PASSWD=${admin_passwd}"],
     path        => ['/bin', '/usr/bin', '/sbin','/usr/sbin'],
     subscribe   => Exec['ipa-server-install']
@@ -408,4 +398,39 @@ class profile::freeipa::server
     require => Exec['ipa-server-install'],
   }
 
+  $domain_name_escdot = regsubst("ipa.${domain_name}", '\.', '\.', 'G')
+  @@apache::vhost { 'ipa_ssl':
+    servername                => "ipa.${domain_name}",
+    port                      => '443',
+    docroot                   => false,
+    manage_docroot            => false,
+    access_log                => false,
+    error_log                 => false,
+    proxy_preserve_host       => true,
+    rewrites                  => [
+      {
+        rewrite_cond => ['%{HTTPS:Connection} Upgrade [NC]'],
+      },
+    ],
+    ssl                       => true,
+    ssl_cert                  => "/etc/letsencrypt/live/${domain_name}/fullchain.pem",
+    ssl_key                   => "/etc/letsencrypt/live/${domain_name}/privkey.pem",
+    ssl_proxyengine           => true,
+    ssl_proxy_check_peer_cn   => 'off',
+    ssl_proxy_check_peer_name => 'off',
+    headers                   => ['always set Strict-Transport-Security "max-age=15768000"'],
+    request_headers           => ["edit Referer ^https://${domain_name_escdot}/ https://${fqdn}/"],
+    proxy_pass                => [
+      {
+        'path'            => '/',
+        'url'             => "https://${fqdn}/",
+        'reverse_cookies' => [
+          {
+            'domain' => "${fqdn}",
+            'url'    => "ipa.${domain_name}"
+          },
+        ],
+      }
+    ],
+  }
 }
