@@ -38,4 +38,4 @@ mod 'jobs_exporter',
 
 mod 'computecanada-jupyterhub',
     :git => 'https://github.com/ComputeCanada/puppet-jupyterhub.git',
-    :ref => 'v1.1'
+    :ref => 'v1.4'
