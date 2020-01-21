@@ -341,9 +341,12 @@ class profile::slurm::controller {
     require       => Tcp_conn_validator['consul'],
     acl_api_token => lookup('profile::consul::acl_api_token')
   }
+
+  $interface = split($::interfaces, ',')[0]
+  $ipaddress = $::networking['interfaces'][$interface]['ip']
   consul_key_value { 'slurmctld/ip':
     ensure        => 'present',
-    value         => $facts['ipaddress_eth0'],
+    value         => $ipaddress,
     require       => Tcp_conn_validator['consul'],
     acl_api_token => lookup('profile::consul::acl_api_token')
   }
@@ -525,7 +528,7 @@ Name=gpu
 
   exec { 'scontrol_update_state':
     command   => "scontrol update nodename=${::hostname} state=idle",
-    onlyif    => "sinfo -n ${::hostname} -o %t -h | grep -q -w down",
+    onlyif    => "sinfo -n ${::hostname} -o %t -h | grep -E -q -w 'down|drain'",
     path      => ['/usr/bin', '/opt/software/slurm/bin'],
     subscribe => Service['slurmd']
   }

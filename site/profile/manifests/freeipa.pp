@@ -65,15 +65,16 @@ END
     require => File_line['resolv_search']
   }
 
+  $interface = split($::interfaces, ',')[0]
   file_line { 'peerdns':
     ensure => present,
-    path   => '/etc/sysconfig/network-scripts/ifcfg-eth0',
+    path   => "/etc/sysconfig/network-scripts/ifcfg-${interface}",
     line   => 'PEERDNS=no'
   }
 
   file_line { 'ifcfg_dns1':
     ensure => present,
-    path   => '/etc/sysconfig/network-scripts/ifcfg-eth0',
+    path   => "/etc/sysconfig/network-scripts/ifcfg-${interface}",
     line   => "DNS1=${dns_ip}"
   }
 
@@ -146,10 +147,12 @@ class profile::freeipa::client(String $server_ip)
 
   $reverse_zone = profile::getreversezone()
   $ptr_record = profile::getptrrecord()
+  $interface = split($::interfaces, ',')[0]
+  $ipaddress = $::networking['interfaces'][$interface]['ip']
 
   exec { 'ipa_dnsrecord-del_ptr':
     command     => "kinit_wrapper ipa dnsrecord-del ${reverse_zone} ${ptr_record} --del-all",
-    onlyif      => "test `dig -x ${::ipaddress_eth0} | grep -oP '^.*\\s[0-9]*\\sIN\\sPTR\\s\\K(.*)'` != ${fqdn}.",
+    onlyif      => "test `dig -x ${ipaddress} | grep -oP '^.*\\s[0-9]*\\sIN\\sPTR\\s\\K(.*)'` != ${fqdn}.",
     require     => [File['kinit_wrapper'], Exec['ipa-client-install']],
     environment => ["IPA_ADMIN_PASSWD=${admin_passwd}"],
     path        => ['/bin', '/usr/bin', '/sbin','/usr/sbin']
@@ -157,10 +160,12 @@ class profile::freeipa::client(String $server_ip)
 
   exec { 'ipa_dnsrecord-add_ptr':
     command     => "kinit_wrapper ipa dnsrecord-add ${reverse_zone} ${ptr_record} --ptr-hostname=${fqdn}.",
-    unless      => "dig -x ${::ipaddress_eth0} | grep -q ';; ANSWER SECTION:'",
+    unless      => "dig -x ${ipaddress} | grep -q ';; ANSWER SECTION:'",
     require     => [File['kinit_wrapper'], Exec['ipa-client-install'], Exec['ipa_dnsrecord-del_ptr']],
     environment => ["IPA_ADMIN_PASSWD=${admin_passwd}"],
-    path        => ['/bin', '/usr/bin', '/sbin','/usr/sbin']
+    path        => ['/bin', '/usr/bin', '/sbin','/usr/sbin'],
+    tries       => 5,
+    try_sleep   => 10,
   }
 
   service { 'sssd':
@@ -265,8 +270,11 @@ class profile::freeipa::server
   $reverse_zone = profile::getreversezone()
 
   # Remove hosts entry only once before install FreeIPA
+  $interface = split($::interfaces, ',')[0]
+  $ipaddress = $::networking['interfaces'][$interface]['ip']
+
   exec { 'remove-hosts-entry':
-    command => "/usr/bin/sed -i '/${::ipaddress_eth0}/d' /etc/hosts",
+    command => "/usr/bin/sed -i '/${ipaddress}/d' /etc/hosts",
     before  => Exec['ipa-server-install'],
     unless  => ['/usr/bin/test -f /var/log/ipaserver-install.log']
   }
@@ -283,7 +291,7 @@ class profile::freeipa::server
       --ssh-trust-dns \
       --unattended \
       --auto-forwarders \
-      --ip-address=${::ipaddress_eth0} \
+      --ip-address=${ipaddress} \
       --no-host-dns \
       --no-dnssec-validation \
       --no-ui-redirect \
