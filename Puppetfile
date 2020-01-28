@@ -33,8 +33,8 @@ mod 'puppetlabs-transition', '0.1.1'
 mod 'yelp-netstdlib', '0.0.1'
 
 mod 'jobs_exporter',
-      :git    => 'https://github.com/Quoding/puppet-petricore.git',
-          :branch => 'testing'
+    :git    => 'https://github.com/Quoding/puppet-petricore.git',
+    :branch => 'testing'
 
 mod 'computecanada-jupyterhub',
     :git => 'https://github.com/ComputeCanada/puppet-jupyterhub.git',
