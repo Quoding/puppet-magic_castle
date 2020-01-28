@@ -12,8 +12,8 @@ profile::freeipa::guest_accounts::nb_accounts: ${nb_users}
 profile::slurm::base::cluster_name: "${cluster_name}"
 profile::slurm::base::munge_key: "${munge_key}"
 profile::slurm::accounting::password: "${freeipa_passwd}"
-profile::slurm::accounting::mgmt1_ip: "${mgmt1_ip}"
 
+profile::slurm::accounting::server_ip: "${mgmt1_ip}"
 profile::freeipa::client::server_ip: "${mgmt1_ip}"
 profile::consul::client::server_ip: "${mgmt1_ip}"
 profile::nfs::client::server_ip: "${mgmt1_ip}"
