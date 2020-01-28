@@ -222,7 +222,7 @@ END
 # Slurm accouting. This where is slurm accounting database and daemon is ran.
 # @param password Specifies the password to access the MySQL database with user slurm.
 # @param dbd_port Specfies the port on which run the slurmdbd daemon.
-class profile::slurm::accounting(String $password, Integer $dbd_port = 6819) {
+class profile::slurm::accounting(String $password, Integer $dbd_port = 6819, String mgmt1_ip) {
 
   consul_key_value { 'slurmdbd/hostname':
     ensure        => 'present',
@@ -236,6 +236,7 @@ class profile::slurm::accounting(String $password, Integer $dbd_port = 6819) {
       'innodb_buffer_pool_size' => '1024M',
       'innodb_log_file_size' => '64M',
       'innodb_lock_wait_timeout' => '900',
+      'bind_address' => $mgmt1_ip
     }
   }
 
