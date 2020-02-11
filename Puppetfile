@@ -34,7 +34,7 @@ mod 'yelp-netstdlib', '0.0.1'
 
 mod 'petricore',
     :git    => 'https://github.com/Quoding/puppet-petricore.git',
-    :branch => 'testing'
+    :branch => 'master'
 
 mod 'computecanada-jupyterhub',
     :git => 'https://github.com/ComputeCanada/puppet-jupyterhub.git',
