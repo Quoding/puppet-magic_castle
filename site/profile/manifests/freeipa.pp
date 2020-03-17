@@ -12,12 +12,18 @@ class profile::freeipa::base (
     enable => false
   }
 
+  service { 'network':
+    ensure => running,
+    enable => true,
+  }
+
   package { [
     'NetworkManager',
     'NetworkManager-tui',
     'NetworkManager-team'
     ]:
-    ensure => purged
+    ensure => purged,
+    notify => Service['network'],
   }
 
   service { 'systemd-logind':
@@ -102,11 +108,6 @@ class profile::freeipa::client(String $server_ip)
     ensure => 'installed'
   }
 
-  exec { 'set_hostname':
-    command => "/bin/hostnamectl set-hostname ${fqdn}",
-    unless  => "/usr/bin/test `hostname` = ${fqdn}"
-  }
-
   tcp_conn_validator { 'ipa_dns':
     host      => $server_ip,
     port      => 53,
@@ -121,8 +122,14 @@ class profile::freeipa::client(String $server_ip)
     timeout   => 1200,
   }
 
+  exec { 'set_hostname':
+    command => "/bin/hostnamectl set-hostname ${fqdn}",
+    unless  => "/usr/bin/test `hostname` = ${fqdn}"
+  }
+
   $ipa_client_install_cmd = @("IPACLIENTINSTALL"/L)
       /sbin/ipa-client-install \
+      --domain ${int_domain_name} \
       --mkhomedir \
       --ssh-trust-dns \
       --enable-dns-updates \
@@ -226,12 +233,6 @@ class profile::freeipa::guest_accounts(
     mode   => '0755'
   }
 
-  exec { 'semanage_fcontext_mnt_home':
-    command => 'semanage fcontext -a -e /home /mnt/home',
-    unless  => 'grep -q "/mnt/home\s*/home" /etc/selinux/targeted/contexts/files/file_contexts.subs*',
-    path    => ['/bin', '/usr/bin', '/sbin','/usr/sbin']
-  }
-
   exec{ 'ipa_add_user':
     command     => "kinit_wrapper ipa_create_user.py ${prefix}{01..${nb_accounts}} --sponsor=sponsor00",
     onlyif      => "test `stat -c '%U' /mnt/home/${prefix}{01..${nb_accounts}} | grep ${prefix} | wc -l` != ${nb_accounts}",
@@ -247,8 +248,12 @@ class profile::freeipa::guest_accounts(
     command => "/sbin/mkhomedir.sh  ${prefix}{01..${nb_accounts}}",
     unless  => "ls /mnt/home/${prefix}{01..${nb_accounts}} &> /dev/null",
     path    => ['/bin', '/usr/bin', '/sbin','/usr/sbin'],
-    require => [Exec['ipa_add_user'],
-                Exec['semanage_fcontext_mnt_home']],
+    require => [
+      Exec['ipa_add_user'],
+      Exec['semanage_fcontext_mnt_home'],
+      Exec['semanage_fcontext_project'],
+      Exec['semanage_fcontext_scratch'],
+    ],
   }
 }
 
@@ -269,16 +274,24 @@ class profile::freeipa::server
   $fqdn = "${::hostname}.${int_domain_name}"
   $reverse_zone = profile::getreversezone()
 
-  # Remove hosts entry only once before install FreeIPA
   $interface = split($::interfaces, ',')[0]
   $ipaddress = $::networking['interfaces'][$interface]['ip']
 
+  # Remove host entry only once before install FreeIPA
   exec { 'remove-hosts-entry':
     command => "/usr/bin/sed -i '/${ipaddress}/d' /etc/hosts",
     before  => Exec['ipa-server-install'],
     unless  => ['/usr/bin/test -f /var/log/ipaserver-install.log']
   }
 
+  # Make sure the FQDN is set in /etc/hosts to avoid any resolve
+  # issue when install FreeIPA server
+  host { $fqdn:
+    ip           => $ipaddress,
+    host_aliases => [$::hostname],
+    require      => Exec['remove-hosts-entry'],
+    before       => Exec['ipa-server-install'],
+  }
 
   $ipa_server_install_cmd = @("IPASERVERINSTALL"/L)
       /sbin/ipa-server-install \

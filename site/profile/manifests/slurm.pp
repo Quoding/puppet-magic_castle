@@ -92,12 +92,9 @@ class profile::slurm::base (
 
   $node_template = @(END)
 # Nodes definition
-{{with tree "slurmd/" | explode }}{{range $key, $value := . -}}
-{{ if and $value.nodename $value.cpus $value.realmemory -}}
-NodeName={{$value.nodename}} CPUs={{$value.cpus}} RealMemory={{$value.realmemory}} {{if gt (parseInt $value.gpus) 0}}Gres=gpu:{{$value.gpus}}{{end}}
-{{end -}}
-{{end -}}
-{{end -}}
+{{ range service "slurmd" -}}
+NodeName={{.Node}} CPUs={{.ServiceMeta.cpus}} RealMemory={{.ServiceMeta.realmemory}} {{if gt (parseInt .ServiceMeta.gpus) 0}}Gres=gpu:{{.ServiceMeta.gpus}}{{end}}
+{{ end -}}
 END
 
   file { '/etc/slurm/node.conf.tpl':
@@ -105,7 +102,8 @@ END
     owner   => 'slurm',
     group   => 'slurm',
     content => $node_template,
-    seltype => 'etc_t'
+    seltype => 'etc_t',
+    notify  => Service['consul-template'],
   }
 
   file { '/etc/slurm/plugstack.conf':
@@ -215,7 +213,8 @@ END
     group   => 'slurm',
     owner   => 'slurm',
     mode    => '0644',
-    require => File['/etc/slurm']
+    require => File['/etc/slurm'],
+    notify  => Service['consul-template'],
   }
 }
 
@@ -224,11 +223,10 @@ END
 # @param dbd_port Specfies the port on which run the slurmdbd daemon.
 class profile::slurm::accounting(String $password, Integer $dbd_port = 6819, String $server_ip) {
 
-  consul_key_value { 'slurmdbd/hostname':
-    ensure        => 'present',
-    value         => $facts['hostname'],
-    require       => Tcp_conn_validator['consul'],
-    acl_api_token => lookup('profile::consul::acl_api_token')
+  consul::service { 'slurmdbd':
+    port    => $dbd_port,
+    require => Tcp_conn_validator['consul'],
+    token   => lookup('profile::consul::acl_api_token'),
   }
 
   $override_options = {
@@ -292,8 +290,8 @@ class profile::slurm::accounting(String $password, Integer $dbd_port = 6819, Str
     command   => "sacctmgr add cluster ${cluster_name} -i",
     path      => ['/bin', '/usr/sbin', '/opt/software/slurm/bin', '/opt/software/slurm/sbin'],
     unless    => "test `sacctmgr show cluster Names=${cluster_name} -n | wc -l` == 1",
-    tries     => 2,
-    try_sleep => 5,
+    tries     => 4,
+    try_sleep => 15,
     timeout   => 5,
     notify    => Service['slurmctld'],
     require   => [Service['slurmdbd'],
@@ -311,8 +309,8 @@ class profile::slurm::accounting(String $password, Integer $dbd_port = 6819, Str
       |EOT
     path      => ['/bin', '/usr/sbin', '/opt/software/slurm/bin', '/opt/software/slurm/sbin'],
     unless    => "test `sacctmgr show account Names=${account_name} -n | wc -l` == 1",
-    tries     => 5,
-    try_sleep => 5,
+    tries     => 4,
+    try_sleep => 15,
     timeout   => 5,
     require   => [Service['slurmdbd'],
                   Tcp_conn_validator['slurmdbd_port'],
@@ -336,20 +334,11 @@ class profile::slurm::accounting(String $password, Integer $dbd_port = 6819, Str
 # Slurm controller class. This where slurmctld is ran.
 class profile::slurm::controller {
   include profile::slurm::base
-  consul_key_value { 'slurmctld/hostname':
-    ensure        => 'present',
-    value         => $facts['hostname'],
-    require       => Tcp_conn_validator['consul'],
-    acl_api_token => lookup('profile::consul::acl_api_token')
-  }
 
-  $interface = split($::interfaces, ',')[0]
-  $ipaddress = $::networking['interfaces'][$interface]['ip']
-  consul_key_value { 'slurmctld/ip':
-    ensure        => 'present',
-    value         => $ipaddress,
-    require       => Tcp_conn_validator['consul'],
-    acl_api_token => lookup('profile::consul::acl_api_token')
+  consul::service { 'slurmctld':
+    port    => 6817,
+    require => Tcp_conn_validator['consul'],
+    token   => lookup('profile::consul::acl_api_token'),
   }
 
   package { 'slurm-slurmctld':
@@ -394,30 +383,16 @@ class profile::slurm::controller {
 class profile::slurm::node {
   include profile::slurm::base
 
-  consul_key_value { "slurmd/${facts['hostname']}/nodename":
-    ensure        => 'present',
-    value         => $facts['hostname'],
-    require       => Tcp_conn_validator['consul'],
-    acl_api_token => lookup('profile::consul::acl_api_token')
-  }
-  consul_key_value { "slurmd/${facts['hostname']}/cpus":
-    ensure        => 'present',
-    value         => String($facts['processors']['count']),
-    require       => Tcp_conn_validator['consul'],
-    acl_api_token => lookup('profile::consul::acl_api_token')
-  }
   $real_memory = $facts['memory']['system']['total_bytes'] / (1024 * 1024)
-  consul_key_value { "slurmd/${facts['hostname']}/realmemory":
-    ensure        => 'present',
-    value         => String($real_memory),
-    require       => Tcp_conn_validator['consul'],
-    acl_api_token => lookup('profile::consul::acl_api_token')
-  }
-  consul_key_value { "slurmd/${facts['hostname']}/gpus":
-    ensure        => 'present',
-    value         => String($facts['nvidia_gpu_count']),
-    require       => Tcp_conn_validator['consul'],
-    acl_api_token => lookup('profile::consul::acl_api_token')
+  consul::service { 'slurmd':
+    port    => 6818,
+    require => Tcp_conn_validator['consul'],
+    token   => lookup('profile::consul::acl_api_token'),
+    meta    => {
+      cpus       => String($facts['processors']['count']),
+      realmemory => String($real_memory),
+      gpus       => String($facts['nvidia_gpu_count']),
+    },
   }
 
   package { 'slurm-slurmd':
@@ -503,9 +478,6 @@ class profile::slurm::node {
 ###########################################################
 <% if $gpu_count > 0 { -%>
 AutoDetect=nvml
-<% Integer[0, $gpu_count - 1].each |$gpu| { -%>
-Name=gpu
-<% } -%>
 <% } -%>
 |EOT
 
@@ -524,7 +496,7 @@ Name=gpu
                   File['/etc/slurm/plugstack.conf']],
     require   => [Package['slurm-slurmd'],
                   Consul_template::Watch['slurm.conf'],
-                  Consul_template::Watch['node.conf']]
+                  Consul_template::Watch['node.conf']],
   }
 
   exec { 'scontrol_update_state':
@@ -532,6 +504,15 @@ Name=gpu
     onlyif    => "sinfo -n ${::hostname} -o %t -h | grep -E -q -w 'down|drain'",
     path      => ['/usr/bin', '/opt/software/slurm/bin'],
     subscribe => Service['slurmd']
+  }
+
+  # If slurmctld server is rebooted slurmd needs to be restarted.
+  # Otherwise, slurmd keeps running, but the node is not in any partition
+  # and no job can be scheduled on it.
+  exec { 'systemctl restart slurmd':
+    onlyif  => "test $(sinfo -n ${::hostname} -o %t -h | wc -l) -eq 0",
+    path    => ['/usr/bin', '/opt/software/slurm/bin'],
+    require => Service['slurmd'],
   }
 }
 

@@ -18,7 +18,7 @@ mod 'petems-swap_file', '4.0.2'
 mod 'puppet-archive', '3.2.1'
 mod 'puppet-healthcheck', '1.0.0'
 mod 'puppet-nodejs', '7.0.1'
-mod 'puppet-prometheus', '7.0.0'
+mod 'puppet-prometheus', '8.2.1'
 mod 'puppet-selinux', '3.0.0'
 mod 'puppet-staging', '3.2.0'
 mod 'puppet-yum', '4.0.0'
@@ -26,6 +26,7 @@ mod 'puppetlabs-apache', '5.2.0'
 mod 'puppetlabs-concat', '5.3.0'
 mod 'puppetlabs-firewall', '2.0.0'
 mod 'puppetlabs-inifile', '3.1.0'
+mod 'puppetlabs-lvm', '1.4.0'
 mod 'puppetlabs-mount_core', '1.0.3'
 mod 'puppetlabs-mysql', '10.1.0'
 mod 'puppetlabs-stdlib', '5.2.0'
@@ -38,4 +39,4 @@ mod 'petricore',
 
 mod 'computecanada-jupyterhub',
     :git => 'https://github.com/ComputeCanada/puppet-jupyterhub.git',
-    :ref => 'v1.6'
+    :ref => 'v1.9.1'

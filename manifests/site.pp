@@ -27,19 +27,10 @@ node /^login\d+$/ {
 }
 
 node /^mgmt1$/ {
-  class { [
-    'profile::consul::server',
-    'profile::metrics::exporter'
-    ]:
-    stage => 'first'
-  }
-
-  class { [
-    'profile::freeipa::server',
-    'profile::nfs::server',
-    ]:
-    stage => 'second'
-  }
+  include profile::consul::server
+  include profile::metrics::exporter
+  include profile::freeipa::server
+  include profile::nfs::server
 
   include profile::metrics::server
   include profile::rsyslog::server
@@ -50,17 +41,19 @@ node /^mgmt1$/ {
   include profile::freeipa::guest_accounts
   include profile::slurm::accounting
   include petricore::db
+  include profile::workshop::mgmt
 }
 
 node /^mgmt(?:[2-9]|[1-9]\d\d*)$/ {
   include profile::consul::client
+  include profile::slurm::controller
   include profile::base
   include profile::rsyslog::client
   include profile::freeipa::client
   include profile::metrics::exporter
 }
 
-node /^node\d+$/ {
+node /^[a-z0-9-]*node\d+$/ {
   include profile::consul::client
   include profile::base
   include profile::metrics::exporter

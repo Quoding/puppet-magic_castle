@@ -1,12 +1,17 @@
 class profile::base (String $sudoer_username = 'centos') {
   include stdlib
 
+  file { '/etc/localtime':
+    ensure => link,
+    target => '/usr/share/zoneinfo/UTC',
+  }
+
   class { '::consul_template':
     config_hash => {
       'consul' => {
         'token' => lookup('profile::consul::acl_api_token')
       }
-    }
+    },
   }
 
   # Allow users to run TCP servers - activated to allow users
