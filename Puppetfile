@@ -39,4 +39,4 @@ mod 'petricore',
 
 mod 'computecanada-jupyterhub',
     :git => 'https://github.com/ComputeCanada/puppet-jupyterhub.git',
-    :ref => 'v1.9.1'
+    :ref => 'v1.9.2'
