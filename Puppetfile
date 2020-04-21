@@ -33,6 +33,10 @@ mod 'puppetlabs-stdlib', '5.2.0'
 mod 'puppetlabs-transition', '0.1.1'
 mod 'yelp-netstdlib', '0.0.1'
 
+mod 'githubrelease',
+    :git => 'https://github.com/dodevops/puppet-githubreleases.git',
+    :branch => 'master'
+
 mod 'petricore',
     :git    => 'https://github.com/Quoding/puppet-petricore.git',
     :branch => 'master'
