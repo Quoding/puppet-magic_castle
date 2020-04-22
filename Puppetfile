@@ -33,10 +33,6 @@ mod 'puppetlabs-stdlib', '5.2.0'
 mod 'puppetlabs-transition', '0.1.1'
 mod 'yelp-netstdlib', '0.0.1'
 
-mod 'download_file',
-    :git => 'https://github.com/voxpupuli/puppet-download_file.git',
-    :branch => 'master'
-
 mod 'petricore',
     :git    => 'https://github.com/Quoding/puppet-petricore.git',
     :branch => 'master'
