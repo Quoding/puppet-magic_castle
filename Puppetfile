@@ -9,6 +9,7 @@ mod 'camptocamp-kmod', '2.3.1'
 mod 'camptocamp-systemd', '2.6.0'
 mod 'cmdntrf-consul_template', '2.3.0'
 mod 'derdanne-nfs', '2.1.2'
+mod 'heini-wait_for', '2.2.0'
 mod 'herculesteam-augeasproviders_core', '2.5.0'
 mod 'herculesteam-augeasproviders_pam', '2.2.1'
 mod 'herculesteam-augeasproviders_shellvar', '3.1.0'
@@ -39,4 +40,4 @@ mod 'petricore',
 
 mod 'computecanada-jupyterhub',
     :git => 'https://github.com/ComputeCanada/puppet-jupyterhub.git',
-    :ref => 'v1.9.2'
+    :ref => 'v3.0.3'
